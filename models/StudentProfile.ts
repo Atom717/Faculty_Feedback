@@ -3,6 +3,8 @@ import mongoose, { Schema, Document, Model } from 'mongoose';
 export type Year = 'FE' | 'SE' | 'TE' | 'BE';
 export type Branch = 'CE' | 'CSE' | 'EXTC';
 export type Division = 'A' | 'B' | 'C' | 'D';
+// StudentYear extends academic progression and is stored on the User document
+export type StudentYear = Year | 'GRAD';
 
 export interface IStudentProfile extends Document {
   studentId: mongoose.Types.ObjectId;

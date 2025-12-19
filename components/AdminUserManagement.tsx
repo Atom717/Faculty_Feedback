@@ -9,6 +9,10 @@ export default function AdminUserManagement() {
     email: '',
     password: '',
     role: 'teacher' as 'teacher' | 'student',
+    uid: '',
+    year: 'FE' as 'FE' | 'SE' | 'TE' | 'BE',
+    branch: 'CE' as 'CE' | 'CSE' | 'EXTC',
+    division: 'A' as 'A' | 'B' | 'C' | 'D',
   });
 
   const [creatingUser, setCreatingUser] = useState(false);
@@ -21,10 +25,38 @@ export default function AdminUserManagement() {
     setUserSuccess('');
     setCreatingUser(true);
 
-    const result = await createUserAccount(newUser);
+    const payload: any =
+      newUser.role === 'student'
+        ? {
+            name: newUser.name,
+            email: newUser.email,
+            password: newUser.password,
+            role: 'student' as const,
+            uid: newUser.uid,
+            year: newUser.year,
+            branch: newUser.branch,
+            division: newUser.division,
+          }
+        : {
+            name: newUser.name,
+            email: newUser.email,
+            password: newUser.password,
+            role: 'teacher' as const,
+          };
+
+    const result = await createUserAccount(payload);
     if (result.success) {
       setUserSuccess(`User created: ${result.user?.email} (${result.user?.role})`);
-      setNewUser({ name: '', email: '', password: '', role: 'teacher' });
+      setNewUser({
+        name: '',
+        email: '',
+        password: '',
+        role: 'teacher',
+        uid: '',
+        year: 'FE',
+        branch: 'CE',
+        division: 'A',
+      });
     } else {
       setUserError(result.error || 'Failed to create user');
     }
@@ -91,6 +123,67 @@ export default function AdminUserManagement() {
                 placeholder="Minimum 6 characters"
               />
             </div>
+
+            {newUser.role === 'student' && (
+              <>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">UID (10 digits)</label>
+                  <input
+                    type="text"
+                    required
+                    pattern="\d{10}"
+                    value={newUser.uid}
+                    onChange={(e) => setNewUser({ ...newUser, uid: e.target.value })}
+                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm px-3 py-2 border"
+                    placeholder="e.g. 1234567890"
+                  />
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700">Year</label>
+                    <select
+                      required
+                      value={newUser.year}
+                      onChange={(e) => setNewUser({ ...newUser, year: e.target.value as any })}
+                      className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm px-3 py-2 border"
+                    >
+                      <option value="FE">FE</option>
+                      <option value="SE">SE</option>
+                      <option value="TE">TE</option>
+                      <option value="BE">BE</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700">Branch</label>
+                    <select
+                      required
+                      value={newUser.branch}
+                      onChange={(e) => setNewUser({ ...newUser, branch: e.target.value as any })}
+                      className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm px-3 py-2 border"
+                    >
+                      <option value="CE">CE</option>
+                      <option value="CSE">CSE</option>
+                      <option value="EXTC">EXTC</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700">Division</label>
+                    <select
+                      required
+                      value={newUser.division}
+                      onChange={(e) => setNewUser({ ...newUser, division: e.target.value as any })}
+                      className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm px-3 py-2 border"
+                    >
+                      <option value="A">A</option>
+                      <option value="B">B</option>
+                      <option value="C">C</option>
+                      <option value="D">D</option>
+                    </select>
+                  </div>
+                </div>
+              </>
+            )}
 
             <div>
               <label className="block text-sm font-medium text-gray-700">Role</label>

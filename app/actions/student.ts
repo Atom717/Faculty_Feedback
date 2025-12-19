@@ -1,74 +1,29 @@
 'use server';
 
 import connectDB from '@/lib/db';
-import StudentProfile from '@/models/StudentProfile';
 import FeedbackForm from '@/models/FeedbackForm';
 import FormTargetGroup from '@/models/FormTargetGroup';
 import FeedbackResponse from '@/models/FeedbackResponse';
+import User from '@/models/User';
 import { requireRole } from '@/lib/auth';
 import { Year, Branch, Division } from '@/models/StudentProfile';
+import bcrypt from 'bcryptjs';
 
-export interface StudentProfileData {
-  year: Year;
-  branch: Branch;
-  division: Division;
-}
-
-export async function createStudentProfile(data: StudentProfileData) {
+export async function getAvailableForms() {
   try {
     const student = await requireRole('student');
     await connectDB();
 
-    // Check if profile already exists
-    const existingProfile = await StudentProfile.findOne({ studentId: student.id });
-
-    if (existingProfile) {
-      return { success: false, error: 'Profile already exists' };
-    }
-
-    const profile = new StudentProfile({
-      studentId: student.id,
-      year: data.year,
-      branch: data.branch,
-      division: data.division,
-    });
-
-    await profile.save();
-
-    return { success: true, profile };
-  } catch (error: any) {
-    console.error('Error creating student profile:', error);
-    return { success: false, error: error.message || 'Failed to create profile' };
-  }
-}
-
-export async function getStudentProfile() {
-  try {
-    const student = await requireRole('student');
-    await connectDB();
-
-    const profile = await StudentProfile.findOne({ studentId: student.id });
-
-    return { success: true, profile };
-  } catch (error: any) {
-    return { success: false, error: error.message || 'Failed to fetch profile' };
-  }
-}
-
-export async function getAvailableForms(profileData: StudentProfileData) {
-  try {
-    const student = await requireRole('student');
-    await connectDB();
-
-    if (!profileData || !profileData.year || !profileData.branch || !profileData.division) {
-      return { success: true, forms: [] };
+    const user = await User.findById(student.id);
+    if (!user || user.role !== 'student' || !user.year || !user.branch || !user.division) {
+      return { success: true, forms: [], studentMeta: null };
     }
 
     // Find target groups matching student's year, branch, division
     const targetGroups = await FormTargetGroup.find({
-      year: profileData.year,
-      branch: profileData.branch,
-      division: profileData.division,
+      year: user.year as Year,
+      branch: user.branch as Branch,
+      division: user.division as Division,
     });
 
     const formIds = targetGroups.map((tg) => tg.formId);
@@ -93,6 +48,12 @@ export async function getAvailableForms(profileData: StudentProfileData) {
 
     return {
       success: true,
+      studentMeta: {
+        year: user.year,
+        branch: user.branch,
+        division: user.division,
+        uid: user.uid,
+      },
       forms: availableForms.map((form) => ({
         _id: form._id.toString(),
         semester: form.semester,
@@ -114,15 +75,16 @@ export interface SubmitFeedbackData {
     teachingQuality: 1 | 2 | 3;
     interactionDoubtSolving: 1 | 2 | 3;
   };
-  year: Year;
-  branch: Branch;
-  division: Division;
 }
 
 export async function submitFeedback(data: SubmitFeedbackData) {
   try {
     const student = await requireRole('student');
     await connectDB();
+    const user = await User.findById(student.id);
+    if (!user || user.role !== 'student' || !user.year || !user.branch || !user.division) {
+      return { success: false, error: 'Student academic details not set by admin' };
+    }
 
     // Check if already submitted
     const existingResponse = await FeedbackResponse.findOne({
@@ -144,9 +106,9 @@ export async function submitFeedback(data: SubmitFeedbackData) {
     // Verify student has access to this form (check target groups)
     const hasAccess = await FormTargetGroup.findOne({
       formId: data.formId,
-      year: data.year,
-      branch: data.branch,
-      division: data.division,
+      year: user.year as Year,
+      branch: user.branch as Branch,
+      division: user.division as Division,
     });
 
     if (!hasAccess) {
@@ -170,6 +132,41 @@ export async function submitFeedback(data: SubmitFeedbackData) {
       return { success: false, error: 'Feedback already submitted for this form' };
     }
     return { success: false, error: error.message || 'Failed to submit feedback' };
+  }
+}
+
+export interface ChangePasswordData {
+  currentPassword: string;
+  newPassword: string;
+}
+
+export async function changeStudentPassword(data: ChangePasswordData) {
+  try {
+    const student = await requireRole('student');
+    await connectDB();
+
+    const user = await User.findById(student.id);
+    if (!user) {
+      return { success: false, error: 'User not found' };
+    }
+
+    const ok = await bcrypt.compare(data.currentPassword, user.password);
+    if (!ok) {
+      return { success: false, error: 'Current password is incorrect' };
+    }
+
+    if (data.newPassword.length < 6) {
+      return { success: false, error: 'New password must be at least 6 characters' };
+    }
+
+    const hashed = await bcrypt.hash(data.newPassword, 10);
+    user.password = hashed;
+    await user.save();
+
+    return { success: true };
+  } catch (err: any) {
+    console.error('Error changing password:', err);
+    return { success: false, error: err.message || 'Failed to change password' };
   }
 }
 

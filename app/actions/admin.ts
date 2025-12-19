@@ -5,7 +5,7 @@ import FeedbackForm from '@/models/FeedbackForm';
 import FormTargetGroup from '@/models/FormTargetGroup';
 import User from '@/models/User';
 import { requireRole } from '@/lib/auth';
-import { Year, Branch, Division } from '@/models/StudentProfile';
+import { Year, Branch, Division, StudentYear } from '@/models/StudentProfile';
 import bcrypt from 'bcryptjs';
 
 export interface CreateFormData {
@@ -104,12 +104,26 @@ export async function getAllForms() {
   }
 }
 
-export interface CreateUserData {
+export interface CreateUserDataBase {
   name: string;
   email: string;
   password: string;
   role: 'student' | 'teacher';
 }
+
+export interface CreateStudentUserData extends CreateUserDataBase {
+  role: 'student';
+  uid: string;
+  year: StudentYear;
+  branch: Branch;
+  division: Division;
+}
+
+export interface CreateTeacherUserData extends CreateUserDataBase {
+  role: 'teacher';
+}
+
+export type CreateUserData = CreateStudentUserData | CreateTeacherUserData;
 
 export async function createUserAccount(data: CreateUserData) {
   try {
@@ -128,18 +142,39 @@ export async function createUserAccount(data: CreateUserData) {
       return { success: false, error: 'Password must be at least 6 characters' };
     }
 
+    if (data.role === 'student') {
+      const studentData = data as CreateStudentUserData;
+      if (!studentData.uid || !studentData.year || !studentData.branch || !studentData.division) {
+        return { success: false, error: 'UID, year, branch, and division are required for students' };
+      }
+      if (!/^\d{10}$/.test(studentData.uid)) {
+        return { success: false, error: 'UID must be exactly 10 digits' };
+      }
+    }
+
     const existing = await User.findOne({ email: data.email.toLowerCase() });
     if (existing) {
       return { success: false, error: 'A user with this email already exists' };
     }
 
     const hashed = await bcrypt.hash(data.password, 10);
-    const user = await User.create({
+
+    const userPayload: any = {
       email: data.email.toLowerCase(),
       password: hashed,
       name: data.name.trim(),
       role: data.role,
-    });
+    };
+
+    if (data.role === 'student') {
+      const studentData = data as CreateStudentUserData;
+      userPayload.uid = studentData.uid;
+      userPayload.year = studentData.year;
+      userPayload.branch = studentData.branch;
+      userPayload.division = studentData.division;
+    }
+
+    const user = await User.create(userPayload);
 
     return { success: true, user: { id: user._id.toString(), name: user.name, email: user.email, role: user.role } };
   } catch (error: any) {
@@ -147,4 +182,39 @@ export async function createUserAccount(data: CreateUserData) {
     return { success: false, error: error.message || 'Failed to create user' };
   }
 }
+
+// Promote all students up by one year: FE->SE, SE->TE, TE->BE, BE->GRAD
+export async function promoteStudentYears() {
+  try {
+    await requireRole('admin');
+    await connectDB();
+
+    await User.updateMany(
+      { role: 'student' },
+      [
+        {
+          $set: {
+            year: {
+              $switch: {
+                branches: [
+                  { case: { $eq: ['$year', 'FE'] }, then: 'SE' },
+                  { case: { $eq: ['$year', 'SE'] }, then: 'TE' },
+                  { case: { $eq: ['$year', 'TE'] }, then: 'BE' },
+                  { case: { $eq: ['$year', 'BE'] }, then: 'GRAD' }
+                ],
+                default: '$year'
+              }
+            }
+          }
+        }
+      ]
+    );
+
+    return { success: true };
+  } catch (error: any) {
+    console.error('Error promoting student years:', error);
+    return { success: false, error: error.message || 'Failed to promote students' };
+  }
+}
+
 
