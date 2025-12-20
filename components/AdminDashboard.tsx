@@ -30,7 +30,7 @@ interface Form {
 
 export default function AdminDashboard() {
   const [teachers, setTeachers] = useState<Teacher[]>([]);
-  const [forms, setForms] = useState<Form[]>([]);
+  const [forms, setForms] = useState<any[]>([]);
   const [showForm, setShowForm] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -49,7 +49,6 @@ export default function AdminDashboard() {
     division: 'A',
   });
 
-  // Teacher statistics states
   const [activeTab, setActiveTab] = useState<'forms' | 'stats'>('forms');
   const [selectedTeacher, setSelectedTeacher] = useState<Teacher | null>(null);
   const [teacherStats, setTeacherStats] = useState<FormStatistics[]>([]);
@@ -177,7 +176,6 @@ export default function AdminDashboard() {
                 offset += dash;
                 return circle;
               })}
-              {/* Background ring */}
               <circle
                 r={radius}
                 fill="transparent"
@@ -214,7 +212,6 @@ export default function AdminDashboard() {
         <p className="mt-2 text-sm text-gray-600">Manage feedback forms and view teacher statistics</p>
       </div>
 
-      {/* Tabs */}
       <div className="px-4 mb-6">
         <div className="border-b border-gray-200">
           <nav className="-mb-px flex space-x-8">
@@ -381,7 +378,7 @@ export default function AdminDashboard() {
                 </button>
               </form>
             </div>
-              )}
+          )}
 
           <div className="mx-4">
             <h2 className="text-xl font-semibold mb-4">All Feedback Forms</h2>
@@ -411,7 +408,7 @@ export default function AdminDashboard() {
               )}
             </div>
           </div>
-      </>
+        </>
       )}
 
       {activeTab === 'stats' && (
@@ -494,4 +491,3 @@ export default function AdminDashboard() {
     </div>
   );
 }
-

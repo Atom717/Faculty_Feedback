@@ -41,7 +41,6 @@ export interface FormStatistics {
     };
   };
 }
-
 export interface CreateFormData {
   semester: string;
   teacherEmail: string;
@@ -234,7 +233,6 @@ export async function getTeacherStatisticsForAdmin(teacherId: string) {
     return { success: false, error: error.message || 'Failed to fetch statistics' };
   }
 }
-
 export interface CreateUserDataBase {
   name: string;
   email: string;
